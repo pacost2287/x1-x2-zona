@@ -1,1 +1,599 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b111e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="./manifest.json" />
+  <title>Paño Vertical - X1/X2 + Rescate Zona T14–T15</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #0b111e; color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100dvh;
+    }
+    .app {
+      max-width: 480px; margin: 0 auto;
+      padding: 8px 10px 28px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+
+    /* HUD */
+    .hud {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+      background: #111827; border: 1px solid #1f2937;
+      border-radius: 10px; padding: 7px 6px;
+      position: sticky; top: 0; z-index: 20;
+    }
+    .hud-item {
+      background: #0f172a; border: 1px solid #1e293b;
+      border-radius: 7px; padding: 5px 4px; text-align: center;
+    }
+    .hud-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3px; }
+    .hud-val { font-size: 13px; font-weight: 800; margin-top: 2px; }
+    .c-cyan { color: #38bdf8; }
+    .c-amber { color: #fbbf24; }
+    .c-green { color: #34d399; }
+    .c-red { color: #f87171; }
+
+    /* Banner fase */
+    .phase-bar {
+      background: #131c31; border: 1px solid #26344f;
+      border-radius: 8px; padding: 6px 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; font-weight: 700; gap: 6px;
+    }
+    .phase-bar.zone-active {
+      background: #1e1b4b; border-color: #6366f1; color: #e0e7ff;
+    }
+    .phase-badge {
+      background: #1e293b; color: #38bdf8;
+      padding: 2px 7px; border-radius: 999px; font-size: 11px; white-space: nowrap;
+    }
+    .phase-bar.zone-active .phase-badge { background: #4f46e5; color: #fff; }
+
+    /* Botones de Zonas */
+    .zones-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    }
+    .zone-btn {
+      position: relative;
+      background: #111827; border: 1.5px solid #334155;
+      color: #cbd5e1; border-radius: 8px;
+      padding: 8px 4px 7px; text-align: center; cursor: pointer;
+      transition: transform 0.08s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
+    }
+    .zone-btn:active { transform: scale(0.96); }
+
+    /* Zona caliente según 1x (guía visual, no fuerza selección) */
+    .zone-btn.hot-1x {
+      border-color: #facc15;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+    }
+    .hot-tag {
+      position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+      background: #facc15; color: #090d16;
+      font-size: 8px; font-weight: 900; letter-spacing: 0.3px;
+      padding: 1px 5px; border-radius: 999px; white-space: nowrap;
+      display: none;
+    }
+    .zone-btn.hot-1x .hot-tag { display: block; }
+
+    /* Zona elegida manualmente por el usuario */
+    .zone-btn.selected {
+      background: #1e3a8a; border-color: #60a5fa; color: #ffffff;
+      box-shadow: 0 0 12px rgba(96, 165, 250, 0.45);
+    }
+    .zone-btn.hot-1x.selected {
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.55), inset 0 0 0 1.5px #facc15;
+    }
+    .zone-btn.urgent:not(.selected) {
+      border-style: dashed;
+    }
+    .zone-title { font-size: 12px; font-weight: 800; display: block; margin-top: 2px; }
+    .zone-sub { font-size: 9px; color: #94a3b8; display: block; margin-top: 2px; }
+    .zone-btn.selected .zone-sub { color: #bfdbfe; }
+    .zone-btn.hot-1x .zone-sub { color: #fde047; font-weight: 700; }
+
+    /* Paño Vertical */
+    .board {
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+    }
+    .num-btn {
+      position: relative;
+      height: 44px; border-radius: 8px;
+      border: 2px solid transparent;
+      font-size: 17px; font-weight: 800; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: transform 0.06s;
+    }
+    .num-btn:active { transform: scale(0.95); }
+    .n-zero { background: #065f46; height: 40px; }
+    .n-red { background: #991b1b; }
+    .n-black { background: #1e293b; }
+
+    /* Estados visuales */
+    .num-btn.in-zone {
+      box-shadow: inset 0 0 0 2px #60a5fa, 0 0 8px rgba(59, 130, 246, 0.45);
+    }
+    .num-btn.hit-1 {
+      border-color: #facc15 !important;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
+    }
+    .num-btn.hit-2 {
+      border-color: #f97316 !important;
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.65);
+    }
+    .badge-cnt {
+      position: absolute; top: 2px; right: 4px;
+      font-size: 9px; font-weight: 900;
+      padding: 1px 4px; border-radius: 4px;
+      background: #facc15; color: #0b111e;
+    }
+    .hit-2 .badge-cnt { background: #fb923c; color: #0b111e; }
+    .zone-dot {
+      position: absolute; bottom: 3px; left: 5px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #60a5fa;
+    }
+
+    /* Controles */
+    .controls {
+      display: grid; grid-template-columns: 1fr 1.4fr; gap: 6px; margin-top: 2px;
+    }
+    .ctrl-btn {
+      border: none; border-radius: 8px; padding: 10px 8px;
+      font-size: 13px; font-weight: 800; cursor: pointer;
+    }
+    .btn-undo { background: #334155; color: #f1f5f9; }
+    .btn-reset { background: #991b1b; color: #fff; }
+
+    /* Tira de tiros actuales */
+    .spins-box {
+      background: #111827; border: 1px solid #1f2937;
+      border-radius: 8px; padding: 7px 8px;
+    }
+    .sec-title {
+      font-size: 10px; font-weight: 800; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.4px;
+      margin-bottom: 5px; display: flex; justify-content: space-between;
+    }
+    .spins-strip {
+      display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px;
+      min-height: 28px; align-items: center;
+    }
+    .chip {
+      min-width: 28px; height: 26px; border-radius: 6px;
+      font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 5px; flex-shrink: 0;
+    }
+    .chip.r { background: #991b1b; }
+    .chip.b { background: #1e293b; border: 1px solid #334155; }
+    .chip.g { background: #065f46; }
+
+    /* Historial */
+    .history-box {
+      background: #111827; border: 1px solid #1f2937;
+      border-radius: 8px; padding: 8px;
+    }
+    .clear-hist {
+      background: #1e293b; color: #cbd5e1; border: 1px solid #334155;
+      border-radius: 5px; font-size: 10px; padding: 2px 7px; cursor: pointer;
+    }
+    .hist-list { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+    .hist-item {
+      background: #0f172a; border: 1px solid #1e293b;
+      border-radius: 7px; padding: 7px 9px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .hist-main { font-size: 12px; font-weight: 800; color: #f8fafc; }
+    .hist-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    .hist-net { font-size: 13px; font-weight: 900; }
+    .empty-msg { font-size: 11px; color: #64748b; text-align: center; padding: 8px 0; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-item">
+        <div class="hud-label">Tiros</div>
+        <div class="hud-val c-cyan" id="hudSpins">0 / 15</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Neto actual</div>
+        <div class="hud-val c-red" id="hudNet">$0</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Apuesta</div>
+        <div class="hud-val c-amber" id="hudBet">$0</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Pago neto</div>
+        <div class="hud-val c-green" id="hudWin">$0</div>
+      </div>
+    </div>
+
+    <!-- Barra de fase -->
+    <div class="phase-bar" id="phaseBar">
+      <span id="phaseText">Espera y anotación (T1–T10)</span>
+      <span class="phase-badge" id="phaseBadge">Sin apuesta</span>
+    </div>
+
+    <!-- 4 Botones de Zonas -->
+    <div class="zones-grid" id="zonesGrid">
+      <button class="zone-btn" data-zone="z0" onclick="selectZone('z0')">
+        <span class="hot-tag">CALIENTE 1x</span>
+        <span class="zone-title">Zona 0</span>
+        <span class="zone-sub" id="sub-z0">9 → 17 (0 de 1x)</span>
+      </button>
+      <button class="zone-btn" data-zone="z17" onclick="selectZone('z17')">
+        <span class="hot-tag">CALIENTE 1x</span>
+        <span class="zone-title">Zona 17</span>
+        <span class="zone-sub" id="sub-z17">26 → 23 (0 de 1x)</span>
+      </button>
+      <button class="zone-btn" data-zone="z10" onclick="selectZone('z10')">
+        <span class="hot-tag">CALIENTE 1x</span>
+        <span class="zone-title">Zona 10</span>
+        <span class="zone-sub" id="sub-z10">17 → 9 (0 de 1x)</span>
+      </button>
+      <button class="zone-btn" data-zone="z9" onclick="selectZone('z9')">
+        <span class="hot-tag">CALIENTE 1x</span>
+        <span class="zone-title">Zona 9</span>
+        <span class="zone-sub" id="sub-z9">10 → 26 (0 de 1x)</span>
+      </button>
+    </div>
+
+    <!-- Paño Vertical -->
+    <div class="board" id="board"></div>
+
+    <!-- Controles -->
+    <div class="controls">
+      <button class="ctrl-btn btn-undo" onclick="undoSpin()">Deshacer</button>
+      <button class="ctrl-btn btn-reset" onclick="resetSession()">Reiniciar Sesión</button>
+    </div>
+
+    <!-- Tiros sesión actual -->
+    <div class="spins-box">
+      <div class="sec-title">
+        <span>Tiros sesión actual (reciente → antiguo)</span>
+        <span id="zoneActiveLabel">Zona: Manual</span>
+      </div>
+      <div class="spins-strip" id="spinsStrip"></div>
+    </div>
+
+    <!-- Historial -->
+    <div class="history-box">
+      <div class="sec-title">
+        <span>Historial de sesiones (Fecha y hora)</span>
+        <button class="clear-hist" onclick="clearHistory()">Borrar</button>
+      </div>
+      <div class="hist-list" id="histList"></div>
+    </div>
+  </div>
+
+  <script>
+    const RED_NUMS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+    // Cilindro europeo sentido horario
+    const WHEEL = [
+      0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
+      10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
+    ];
+
+    function buildArc(start, end) {
+      const res = [];
+      let i = WHEEL.indexOf(start);
+      while (true) {
+        res.push(WHEEL[i]);
+        if (WHEEL[i] === end) break;
+        i = (i + 1) % WHEEL.length;
+      }
+      return res;
+    }
+
+    const ZONES = {
+      z0:  { name: "Zona 0",  range: "9 → 17",  nums: buildArc(9, 17) },
+      z17: { name: "Zona 17", range: "26 → 23", nums: buildArc(26, 23) },
+      z10: { name: "Zona 10", range: "17 → 9",  nums: buildArc(17, 9) },
+      z9:  { name: "Zona 9",  range: "10 → 26", nums: buildArc(10, 26) }
+    };
+
+    const STEP_CONFIG = {
+      11: { bet: 1000,  gross: 3600,  mode: "plenos", label: "T11 Plenos ($100/n°)" },
+      12: { bet: 1100,  gross: 3600,  mode: "plenos", label: "T12 Plenos ($100/n°)" },
+      13: { bet: 2400,  gross: 7200,  mode: "plenos", label: "T13 Plenos ($200/n°)" },
+      14: { bet: 8000,  gross: 14400, mode: "zona",   label: "T14 ZONA ($400/n°)" },
+      15: { bet: 16000, gross: 28800, mode: "zona",   label: "T15 ZONA 2× ($800/n°)" }
+    };
+
+    const STORAGE_KEY = "roulette_x1x2_zona_hot1x_v1";
+    let spins = [];
+    let selectedZone = null;
+    let history = [];
+
+    try {
+      history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    } catch (e) { history = []; }
+
+    function fmtMoney(v) {
+      const abs = Math.abs(v).toLocaleString("es-AR");
+      if (v > 0) return `+$${abs}`;
+      if (v < 0) return `-$${abs}`;
+      return "$0";
+    }
+
+    function getCounts() {
+      const map = {};
+      for (const n of spins) map[n] = (map[n] || 0) + 1;
+      return map;
+    }
+
+    function getSpentBeforeTurn(turn) {
+      let spent = 0;
+      for (let t = 11; t < turn; t++) {
+        if (STEP_CONFIG[t]) spent += STEP_CONFIG[t].bet;
+      }
+      return spent;
+    }
+
+    function getHotZonesBy1x(counts) {
+      const scores = {};
+      let max1x = 0;
+      for (const zKey of Object.keys(ZONES)) {
+        let c1x = 0;
+        for (const n of ZONES[zKey].nums) {
+          if ((counts[n] || 0) === 1) c1x++;
+        }
+        scores[zKey] = c1x;
+        if (c1x > max1x) max1x = c1x;
+      }
+      const hotSet = new Set();
+      if (max1x > 0) {
+        for (const zKey of Object.keys(scores)) {
+          if (scores[zKey] === max1x) hotSet.add(zKey);
+        }
+      }
+      return { scores, max1x, hotSet };
+    }
+
+    function selectZone(zKey) {
+      selectedZone = (selectedZone === zKey) ? null : zKey;
+      render();
+    }
+
+    function addSpin(num) {
+      const turn = spins.length + 1;
+      const prevCounts = getCounts();
+      const wasHitBefore = (prevCounts[num] || 0) >= 1;
+
+      spins.push(num);
+
+      if (turn >= 11 && turn <= 15) {
+        const cfg = STEP_CONFIG[turn];
+        const spentTotal = getSpentBeforeTurn(turn) + cfg.bet;
+
+        if (cfg.mode === "plenos") {
+          if (wasHitBefore) {
+            const netWin = cfg.gross - spentTotal;
+            saveSession(`X2 en N° ${num} · T${turn} (${turn} tiros)`, netWin);
+            spins = [];
+            selectedZone = null;
+          }
+        } else if (cfg.mode === "zona") {
+          const zObj = selectedZone ? ZONES[selectedZone] : null;
+          const inZone = zObj ? zObj.nums.includes(num) : false;
+
+          if (inZone) {
+            const netWin = cfg.gross - spentTotal;
+            saveSession(`${zObj.name} (N° ${num}) · T${turn}`, netWin);
+            spins = [];
+            selectedZone = null;
+          } else if (turn === 15) {
+            const zName = zObj ? zObj.name : "Sin zona";
+            saveSession(`Stop-Loss T15 (${zName} · N° ${num})`, -spentTotal);
+            spins = [];
+            selectedZone = null;
+          }
+        }
+      }
+
+      render();
+    }
+
+    function undoSpin() {
+      if (spins.length === 0) return;
+      spins.pop();
+      render();
+    }
+
+    function resetSession() {
+      spins = [];
+      selectedZone = null;
+      render();
+    }
+
+    function saveSession(title, net) {
+      const now = new Date();
+      const fecha = now.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+      history.unshift({ title, net, stamp: `${fecha} · ${hora}` });
+      if (history.length > 60) history.pop();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      } catch (e) {}
+    }
+
+    function clearHistory() {
+      history = [];
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      render();
+    }
+
+    function buildBoard() {
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+
+      const zeroBtn = document.createElement("button");
+      zeroBtn.className = "num-btn n-zero";
+      zeroBtn.dataset.num = 0;
+      zeroBtn.textContent = "0";
+      zeroBtn.onclick = () => addSpin(0);
+      board.appendChild(zeroBtn);
+
+      const grid = document.createElement("div");
+      grid.className = "grid-3";
+      for (let n = 1; n <= 36; n++) {
+        const btn = document.createElement("button");
+        btn.className = `num-btn ${RED_NUMS.has(n) ? "n-red" : "n-black"}`;
+        btn.dataset.num = n;
+        btn.textContent = n;
+        btn.onclick = () => addSpin(n);
+        grid.appendChild(btn);
+      }
+      board.appendChild(grid);
+    }
+
+    function render() {
+      const counts = getCounts();
+      const currentCount = spins.length;
+      const nextTurn = currentCount + 1;
+      const spentSoFar = getSpentBeforeTurn(nextTurn);
+      const { scores, max1x, hotSet } = getHotZonesBy1x(counts);
+
+      // HUD
+      document.getElementById("hudSpins").textContent = `${currentCount} / 15`;
+      const netEl = document.getElementById("hudNet");
+      netEl.textContent = spentSoFar > 0 ? fmtMoney(-spentSoFar) : "$0";
+      netEl.className = `hud-val ${spentSoFar > 0 ? "c-red" : "c-cyan"}`;
+
+      const cfg = STEP_CONFIG[nextTurn];
+      const betVal = cfg ? cfg.bet : 0;
+      const winVal = cfg ? (cfg.gross - (spentSoFar + cfg.bet)) : 0;
+
+      document.getElementById("hudBet").textContent = `$${betVal.toLocaleString("es-AR")}`;
+      document.getElementById("hudWin").textContent = winVal > 0 ? fmtMoney(winVal) : "$0";
+
+      // Fase
+      const phaseBar = document.getElementById("phaseBar");
+      const phaseText = document.getElementById("phaseText");
+      const phaseBadge = document.getElementById("phaseBadge");
+
+      const hotNames = [...hotSet].map(k => ZONES[k].name).join(" / ");
+
+      if (nextTurn <= 10) {
+        phaseBar.className = "phase-bar";
+        phaseText.textContent = `Espera y anotación (Faltan ${11 - nextTurn} tiros)`;
+        phaseBadge.textContent = hotNames ? `Top 1x: ${hotNames}` : "T1–T10 · $0";
+      } else if (nextTurn <= 13) {
+        phaseBar.className = "phase-bar";
+        phaseText.textContent = `${cfg.label}`;
+        phaseBadge.textContent = hotNames ? `Top 1x: ${hotNames}` : "Busca X2";
+      } else {
+        phaseBar.className = "phase-bar zone-active";
+        const zName = selectedZone ? ZONES[selectedZone].name : "Elegí manual";
+        phaseText.textContent = `${cfg.label} · ${zName}`;
+        phaseBadge.textContent = hotNames ? `Top 1x: ${hotNames}` : "Sin 1x";
+      }
+
+      // Actualizar botones de zona
+      const activeSet = selectedZone ? new Set(ZONES[selectedZone].nums) : new Set();
+      for (const zKey of Object.keys(ZONES)) {
+        const zObj = ZONES[zKey];
+        const c1x = scores[zKey];
+        document.getElementById(`sub-${zKey}`).textContent = `${zObj.range} (${c1x} de 1x)`;
+        const btn = document.querySelector(`.zone-btn[data-zone="${zKey}"]`);
+        btn.classList.toggle("hot-1x", hotSet.has(zKey) && max1x > 0);
+        btn.classList.toggle("selected", selectedZone === zKey);
+        btn.classList.toggle("urgent", nextTurn >= 14 && !selectedZone);
+      }
+
+      const manualText = selectedZone
+        ? `Elegida: ${ZONES[selectedZone].name}`
+        : "Elegida: Manual";
+      const hotSummary = hotNames ? ` · Caliente 1x: ${hotNames} (${max1x})` : "";
+      document.getElementById("zoneActiveLabel").textContent = `${manualText}${hotSummary}`;
+
+      // Actualizar botones del tablero
+      document.querySelectorAll(".num-btn").forEach(btn => {
+        const n = Number(btn.dataset.num);
+        const c = counts[n] || 0;
+        const inZone = activeSet.has(n);
+
+        btn.classList.toggle("hit-1", c === 1);
+        btn.classList.toggle("hit-2", c >= 2);
+        btn.classList.toggle("in-zone", inZone);
+
+        btn.innerHTML = `${n}`;
+        if (c >= 1) {
+          const b = document.createElement("span");
+          b.className = "badge-cnt";
+          b.textContent = `${c}x`;
+          btn.appendChild(b);
+        }
+        if (inZone) {
+          const d = document.createElement("span");
+          d.className = "zone-dot";
+          btn.appendChild(d);
+        }
+      });
+
+      // Tira de tiros recientes
+        const strip = document.getElementById("spinsStrip");
+      strip.innerHTML = "";
+      if (spins.length === 0) {
+        strip.innerHTML = `<span style="font-size:11px;color:#64748b;">Tocá un número para iniciar...</span>`;
+      } else {
+        for (let i = spins.length - 1; i >= 0; i--) {
+          const n = spins[i];
+          const ch = document.createElement("span");
+          ch.className = `chip ${n === 0 ? "g" : RED_NUMS.has(n) ? "r" : "b"}`;
+          ch.textContent = n;
+          strip.appendChild(ch);
+        }
+      }
+
+      // Historial
+      const histList = document.getElementById("histList");
+      histList.innerHTML = "";
+      if (history.length === 0) {
+        histList.innerHTML = `<div class="empty-msg">Sin sesiones guardadas todavía</div>`;
+      } else {
+        for (const item of history) {
+          const row = document.createElement("div");
+          row.className = "hist-item";
+          row.innerHTML = `
+            <div>
+              <div class="hist-main">${item.title}</div>
+              <div class="hist-sub">${item.stamp}</div>
+            </div>
+            <div class="hist-net ${item.net >= 0 ? "c-green" : "c-red"}">${fmtMoney(item.net)}</div>
+          `;
+          histList.appendChild(row);
+        }
+      }
+    }
+
+    buildBoard();
+    render();
+
+    // Registro de Service Worker para GitHub Pages / PWA
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
