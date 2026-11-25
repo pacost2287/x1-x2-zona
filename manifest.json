@@ -1,1 +1,20 @@
 
+{
+  "name": "Paño Vertical X1/X2 · Rescate Zona T14–T15",
+  "short_name": "Paño T15",
+  "description": "Tracker móvil X1/X2 con rescate por zonas del cilindro en T14–T15 y guía Caliente 1x.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b111e",
+  "theme_color": "#0b111e",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='108' fill='%230b111e'/%3E%3Ccircle cx='256' cy='256' r='190' fill='none' stroke='%23facc15' stroke-width='26'/%3E%3Ccircle cx='256' cy='256' r='125' fill='%23065f46'/%3E%3Ctext x='256' y='282' font-family='sans-serif' font-size='110' font-weight='bold' fill='%23ffffff' text-anchor='middle'%3ET15%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
